@@ -10,6 +10,7 @@
 #include "rxso3.h"
 #include "se3.h"
 #include "sim3.h"
+#include "sek3.h"
 
 
 template <typename Group, typename scalar_t>
@@ -313,12 +314,12 @@ void as_matrix_forward_kernel(const scalar_t* X_ptr, scalar_t* T_ptr, int batch_
     // group inverse forward kernel
     using Tangent = Eigen::Matrix<scalar_t,Group::K,1>;
     using Data = Eigen::Matrix<scalar_t,Group::N,1>;
-    using Matrix4 = Eigen::Matrix<scalar_t,4,4,Eigen::RowMajor>;
+    using MatrixM = Eigen::Matrix<scalar_t,Group::M,Group::M,Eigen::RowMajor>;
 
     at::parallel_for(0, batch_size, 1, [&](int64_t start, int64_t end) {
         for (int64_t i=start; i<end; i++) {
             Group X(X_ptr + i*Group::N);
-            Eigen::Map<Matrix4>(T_ptr + i*16) = X.Matrix4x4();
+            Eigen::Map<MatrixM>(T_ptr + i*(Group::M * Group::M)) = X.Matrix();
         }
     });
 }
@@ -614,9 +615,11 @@ std::vector<torch::Tensor> act4_backward_cpu(int group_id, torch::Tensor grad, t
 
 torch::Tensor as_matrix_forward_cpu(int group_id, torch::Tensor X) {
     int batch_size = X.size(0);
-    torch::Tensor T4x4 = torch::zeros({X.size(0), 4, 4}, X.options());
+    torch::Tensor T4x4;
 
     DISPATCH_GROUP_AND_FLOATING_TYPES(group_id, X.type(), "as_matrix_forward_kernel", ([&] {
+        T4x4 = torch::zeros({X.size(0), group_t::M, group_t::M}, X.options());
+      
         as_matrix_forward_kernel<group_t, scalar_t>(
             X.data_ptr<scalar_t>(), 
             T4x4.data_ptr<scalar_t>(), 

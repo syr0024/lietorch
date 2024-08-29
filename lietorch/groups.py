@@ -310,6 +310,29 @@ class Sim3(LieGroup):
         super(Sim3, self).__init__(data)
 
 
+class SEK3(LieGroup):
+    group_name = 'SEK3'
+    group_id = 5
+    k = 6
+    manifold_dim = 3+3*k
+    embedded_dim = 4+3*k
+
+    # translation, unit quaternion
+    id_elem = torch.as_tensor([0, 0, 0, 1] + [0, 0, 0] * k)
+
+    def __init__(self, data):
+        if isinstance(data, SO3):
+            translation = torch.zeros_like(data.data[...,:3]).repeat_interleave(self.k, dim=-1)
+            data = torch.cat([data.data, translation], -1)
+
+        super(SEK3, self).__init__(data)
+
+    def scale(self, s):
+        q, t = self.data.split([4,3*self.k], -1)
+        t = t * s.unsqueeze(-1)
+        return SE3(torch.cat([q, t], dim=-1))
+
+
 def cat(group_list, dim):
     """ Concatenate groups along dimension """
     data = torch.cat([X.data for X in group_list], dim=dim)

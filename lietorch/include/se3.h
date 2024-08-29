@@ -15,6 +15,7 @@ class SE3 {
   public:
     const static int constexpr K = 6; // manifold dimension
     const static int constexpr N = 7; // embedding dimension
+    const static int constexpr M = 4; // matrix dimension
 
     using Vector3 = Eigen::Matrix<Scalar,3,1>;
     using Vector4 = Eigen::Matrix<Scalar,4,1>;

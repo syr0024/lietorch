@@ -9,6 +9,7 @@
 #include "rxso3.h"
 #include "se3.h"
 #include "sim3.h"
+#include "sek3.h"
 
 #define GPU_1D_KERNEL_LOOP(i, n) \
   for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i<n; i += blockDim.x * gridDim.x)
@@ -260,11 +261,11 @@ __global__ void as_matrix_forward_kernel(const scalar_t* X_ptr, scalar_t* T_ptr,
     // convert to 4x4 matrix representation
     using Tangent = Eigen::Matrix<scalar_t,Group::K,1>;
     using Data = Eigen::Matrix<scalar_t,Group::N,1>;
-    using Matrix4 = Eigen::Matrix<scalar_t,4,4,Eigen::RowMajor>;
+    using MatrixM = Eigen::Matrix<scalar_t,Group::M,Group::M,Eigen::RowMajor>;
 
     GPU_1D_KERNEL_LOOP(i, num_threads) {
         Group X(X_ptr + i*Group::N);
-        Eigen::Map<Matrix4>(T_ptr + i*16) = X.Matrix4x4();
+        Eigen::Map<MatrixM>(T_ptr + i*(Group::M * Group::M)) = X.Matrix();
     }
 }
 
@@ -556,9 +557,11 @@ std::vector<torch::Tensor> act4_backward_gpu(int group_id, torch::Tensor grad, t
 
 torch::Tensor as_matrix_forward_gpu(int group_id, torch::Tensor X) {
     int batch_size = X.size(0);
-    torch::Tensor T4x4 = torch::zeros({X.size(0), 4, 4}, X.options());
+    torch::Tensor T4x4;
 
     DISPATCH_GROUP_AND_FLOATING_TYPES(group_id, X.type(), "as_matrix_forward_kernel", ([&] {
+        T4x4 = torch::zeros({X.size(0), group_t::M, group_t::M}, X.options());
+        
         as_matrix_forward_kernel<group_t, scalar_t><<<NUM_BLOCKS(batch_size), NUM_THREADS>>>(
             X.data_ptr<scalar_t>(), 
             T4x4.data_ptr<scalar_t>(), 
