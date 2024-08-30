@@ -174,19 +174,29 @@ class LieGroup:
             return self.apply_op(Act3, self.data, p)
         
         # action on homogeneous point
-        elif p.shape[-1] == 4:
+        elif p.shape[-1] > 3:
             return self.apply_op(Act4, self.data, p)
 
     def matrix(self):
         """ convert element to 4x4 matrix """
-        I = torch.eye(4, dtype=self.dtype, device=self.device)
-        I = I.view([1] * (len(self.data.shape) - 1) + [4, 4])
+        k = 6 # TODO: k 밖에서 설정해줄 수 있도록 해야함
+        if self.data.shape[-1] < 9: m = 4
+        else: m = 3+k
+
+        I = torch.eye(m, dtype=self.dtype, device=self.device)
+        I = I.view([1] * (len(self.data.shape) - 1) + [m, m])
         return self.__class__(self.data[...,None,:]).act(I).transpose(-1,-2)
 
     def translation(self):
         """ extract translation component """
-        p = torch.as_tensor([0.0, 0.0, 0.0, 1.0], dtype=self.dtype, device=self.device)
-        p = p.view([1] * (len(self.data.shape) - 1) + [4,])
+        k = 6 # TODO: k 밖에서 설정해줄 수 있도록 해야함
+        if self.data.shape[-1] < 9:
+            m = 4
+            p = torch.as_tensor([0.0, 0.0, 0.0, 1.0], dtype=self.dtype, device=self.device)
+        else:
+            m = 3+k
+            p = torch.cat((torch.zeros(3, dtype=self.dtype, device=self.device), torch.ones(k, dtype=self.dtype, device=self.device)))
+        p = p.view([1] * (len(self.data.shape) - 1) + [m,])
         return self.apply_op(Act4, self.data, p)
 
     def detach(self):

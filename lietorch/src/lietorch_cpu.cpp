@@ -275,13 +275,13 @@ void act4_forward_kernel(const scalar_t* X_ptr, const scalar_t* p_ptr, scalar_t*
     // action on homogeneous point forward kernel
     using Tangent = Eigen::Matrix<scalar_t,Group::K,1>;
     using Data = Eigen::Matrix<scalar_t,Group::N,1>;
-    using Point = Eigen::Matrix<scalar_t,4,1>;
+    using Point = Eigen::Matrix<scalar_t,Group::M,1>;
 
     at::parallel_for(0, batch_size, 1, [&](int64_t start, int64_t end) {
         for (int64_t i=start; i<end; i++) {
             Group X(X_ptr + i*Group::N);
-            Point p(p_ptr + i*4);
-            Eigen::Map<Point>(q_ptr + i*4) = X.act4(p);
+            Point p(p_ptr + i*Group::M);
+            Eigen::Map<Point>(q_ptr + i*Group::M) = X.act4(p);
         }
     });
 }
@@ -292,17 +292,17 @@ void act4_backward_kernel(const scalar_t* grad, const scalar_t* X_ptr, const sca
 
     using Tangent = Eigen::Matrix<scalar_t,Group::K,1>;
     using Grad = Eigen::Matrix<scalar_t,1,Group::K>;
-    using Point = Eigen::Matrix<scalar_t,4,1>;
-    using PointGrad = Eigen::Matrix<scalar_t,1,4>;
-    using Transformation = Eigen::Matrix<scalar_t,4,4>;
+    using Point = Eigen::Matrix<scalar_t,Group::M,1>;
+    using PointGrad = Eigen::Matrix<scalar_t,1,Group::M>;
+    using Transformation = Eigen::Matrix<scalar_t,Group::M,Group::M>;
 
     at::parallel_for(0, batch_size, 1, [&](int64_t start, int64_t end) {
         for (int64_t i=start; i<end; i++) {
             Group X(X_ptr + i*Group::N);
-            Point p(p_ptr + i*4);
-            PointGrad dq(grad + i*4);
+            Point p(p_ptr + i*Group::M);
+            PointGrad dq(grad + i*Group::M);
 
-            Eigen::Map<PointGrad>(dp + i*4) = dq * X.Matrix4x4();
+            Eigen::Map<PointGrad>(dp + i*Group::M) = dq * X.Matrix4x4();
             const Point q = X.act4(p);
             Eigen::Map<Grad>(dX + i*Group::N) = dq * Group::act4_jacobian(q);
         }
@@ -319,7 +319,7 @@ void as_matrix_forward_kernel(const scalar_t* X_ptr, scalar_t* T_ptr, int batch_
     at::parallel_for(0, batch_size, 1, [&](int64_t start, int64_t end) {
         for (int64_t i=start; i<end; i++) {
             Group X(X_ptr + i*Group::N);
-            Eigen::Map<MatrixM>(T_ptr + i*(Group::M * Group::M)) = X.Matrix();
+            Eigen::Map<MatrixM>(T_ptr + i*(Group::M * Group::M)) = X.Matrix4x4();
         }
     });
 }
@@ -615,18 +615,17 @@ std::vector<torch::Tensor> act4_backward_cpu(int group_id, torch::Tensor grad, t
 
 torch::Tensor as_matrix_forward_cpu(int group_id, torch::Tensor X) {
     int batch_size = X.size(0);
-    torch::Tensor T4x4;
+    torch::Tensor TMxM;
 
     DISPATCH_GROUP_AND_FLOATING_TYPES(group_id, X.type(), "as_matrix_forward_kernel", ([&] {
-        T4x4 = torch::zeros({X.size(0), group_t::M, group_t::M}, X.options());
-      
+        TMxM = torch::zeros({X.size(0), group_t::M, group_t::M}, X.options());
         as_matrix_forward_kernel<group_t, scalar_t>(
-            X.data_ptr<scalar_t>(), 
-            T4x4.data_ptr<scalar_t>(), 
+            X.data_ptr<scalar_t>(),
+            TMxM.data_ptr<scalar_t>(),
             batch_size);
     }));
 
-    return T4x4;
+    return TMxM;
 }
 
 

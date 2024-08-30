@@ -1,3 +1,0 @@
-/home/syr/workspace/lietorch/cmake-build-debug/CMakeFiles/LieTorch.dir
-/home/syr/workspace/lietorch/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/syr/workspace/lietorch/cmake-build-debug/CMakeFiles/rebuild_cache.dir

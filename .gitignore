@@ -1,6 +1,7 @@
 __pycache__
 build
 dist
+cmake-build-debug
 *.egg-info
 *.vscode/
 *.pth

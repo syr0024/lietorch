@@ -24,13 +24,14 @@ class SEK3 {
     using Vector3k = Eigen::Matrix<Scalar,3*k,1>;
     using Matrix3 = Eigen::Matrix<Scalar,3,3>;
     using Matrix4 = Eigen::Matrix<Scalar,4,4>;
+    using MatrixM = Eigen::Matrix<Scalar,M,M>;
 
     using Tangent = Eigen::Matrix<Scalar,K,1>;
     using Point = Eigen::Matrix<Scalar,3,1>;
     using Point4 = Eigen::Matrix<Scalar,4,1>;
     using PointM = Eigen::Matrix<Scalar,M,1>;
     using Data = Eigen::Matrix<Scalar,N,1>;
-    using Transformation = Eigen::Matrix<Scalar,3+k,3+k>;
+    using Transformation = Eigen::Matrix<Scalar,M,M>;
     using Adjoint = Eigen::Matrix<Scalar,K,K>;
 
     EIGEN_DEVICE_FUNC SEK3() { translation = Vector3k::Zero(); }
@@ -48,7 +49,7 @@ class SEK3 {
     }
 
     EIGEN_DEVICE_FUNC Data data() const {
-      Data data_vec; data_vec << translation, so3.data();
+      Data data_vec; data_vec << so3.data(), translation;
       return data_vec;
     }
 
@@ -64,14 +65,8 @@ class SEK3 {
     EIGEN_DEVICE_FUNC Point operator*(Point const& p) const {
       return so3 * p + translation.template segment<3>(3);
     }
-  
-    // TODO: SEK3 상에서는 안쓰는 함수
-    EIGEN_DEVICE_FUNC Point4 act4(Point4 const& p) const {
-      Point4 p1; p1 << so3 * p.template segment<3>(0) + translation.template segment<3>(3) * p(3), p(3);
-      return p1;
-    }
-  
-    EIGEN_DEVICE_FUNC PointM actM(PointM const& p) const {
+
+    EIGEN_DEVICE_FUNC PointM act4(PointM const& p) const {
       PointM p1;
       Point p_up = so3 * p.template segment<3>(0);
       for (int i=0; i<k; i++){
@@ -105,11 +100,8 @@ class SEK3 {
       return T;
     }
 
-    EIGEN_DEVICE_FUNC Matrix4 Matrix4x4() const {
-      Matrix4 T = Matrix4::Identity();
-      T.template block<3,3>(0,0) = so3.Matrix();
-      T.template block<3,1>(0,3) = translation.template segment<3>(3);
-      return T;
+    EIGEN_DEVICE_FUNC MatrixM Matrix4x4() const {
+      return Matrix();
     }
 
     EIGEN_DEVICE_FUNC Tangent Adj(Tangent const& a) const {
@@ -154,8 +146,8 @@ class SEK3 {
       Eigen::Matrix<Scalar,N,N> J = Eigen::Matrix<Scalar,N,N>::Zero();
       J.template block<4,4>(0,0) = so3.orthogonal_projector();
       for (int i=0; i<k; i++) {
-        J.template block<3,3>(3*(i+1),3*(i+1)) = Matrix3::Identity();
-        J.template block<3,3>(3*(i+1),0) = SO3<Scalar>::hat(-translation.template segment<3>(3*i));
+        J.template block<3,3>(4+3*i,3+3*i) = Matrix3::Identity();
+        J.template block<3,3>(4+3*i,0) = SO3<Scalar>::hat(-translation.template segment<3>(3*i));
       }
 
       return J;
@@ -229,7 +221,7 @@ class SEK3 {
         Vector6 tau_phi = Vector6::Zero();
         tau_phi << phi_tau.template segment<3>(3*(i+1)), phi;
         Matrix3 Q = SEK3<Scalar>::calcQ(tau_phi);
-        JKxK.template block<3,3>(0,3*(i+1)) = Q;
+        JKxK.template block<3,3>(3*(i+1),0) = Q;
       }
 
       return JKxK;
@@ -246,7 +238,7 @@ class SEK3 {
         Vector6 tau_phi = Vector6::Zero();
         tau_phi << phi_tau.template segment<3>(3*(i+1)), phi;
         Matrix3 Q = SEK3<Scalar>::calcQ(tau_phi);
-        JKxK.template block<3,3>(0,3*(i+1)) = -Jinv * Q * Jinv;
+        JKxK.template block<3,3>(3*(i+1),0) = -Jinv * Q * Jinv;
       }
 
       return JKxK;
@@ -260,13 +252,14 @@ class SEK3 {
       J.template block<3,3>(0,3) = SO3<Scalar>::hat(-p);
       return J;
     }
-  
-    // TODO: 수정 안함
-    EIGEN_DEVICE_FUNC static Eigen::Matrix<Scalar,4,K> act4_jacobian(Point4 const& p) {
+    
+    EIGEN_DEVICE_FUNC static Eigen::Matrix<Scalar,M,K> act4_jacobian(PointM const& p) {
       // jacobian action on a point
-      Eigen::Matrix<Scalar,4,K> J = Eigen::Matrix<Scalar,4,K>::Zero();
-      J.template block<3,3>(0,0) = p(3) * Matrix3::Identity();
-      J.template block<3,3>(0,3) = SO3<Scalar>::hat(-p.template segment<3>(0));
+      Eigen::Matrix<Scalar,M,K> J = Eigen::Matrix<Scalar,M,K>::Zero();
+      J.template block<3,3>(0,0) = SO3<Scalar>::hat(-p.template segment<3>(0));
+      for (int i=0; i<k; i++) {
+        J.template block<3,3>(0,3*(i+1)) = p(3+i) * Matrix3::Identity();
+      }
       return J;
     }
 
