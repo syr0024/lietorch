@@ -137,7 +137,7 @@ def test_act_grad(Group, device='cuda'):
         return (X*Group.exp(a)).act(b)
 
     a = torch.zeros(1, D, requires_grad=True, device=device).double()
-    b = torch.randn(1, 3, requires_grad=True, device=device).double()
+    b = torch.randn(1, Group.matrix_dim, requires_grad=True, device=device).double()
 
     analytical, numerical = gradcheck(fn, [a, b], eps=1e-4)
 
@@ -230,6 +230,22 @@ def test_fromvec_grad(Group, device='cuda', tol=1e-6):
     assert torch.allclose(analytical[0], numerical[0], atol=tol)
     print("\t-", Group, "Passed fromvec grad test")
 
+# def test_fromcat_grad(Group, device='cuda', tol=1e-6):
+#
+#     D = Group.manifold_dim
+#     X = Group.exp(5*torch.randn(1,D, device=device).double())
+#
+#     def fn(q, t):
+#         return Group.InitFromCat(q,t)
+#
+#     q = torch.randn(1, 2, 4, requires_grad=True, device=device).double()
+#     q = SO3(q / q.norm(dim=-1, keepdim=True))
+#     t = torch.zeros(1, 2, 3*6, requires_grad=True, device=device)
+#
+#     analytical, numerical = gradcheck(fn, [q, t], eps=1e-4)
+#
+#     assert torch.allclose(analytical[0], numerical[0], atol=tol)
+#     print("\t-", Group, "Passed fromcat grad test")
 
 
 def scale(device='cuda'):
@@ -279,6 +295,8 @@ if __name__ == '__main__':
         extract_translation_grad(Group, device='cpu')
         test_vec_grad(Group, device='cpu')
         test_fromvec_grad(Group, device='cpu')
+        # if Group == SEK3:
+        #     test_fromcat_grad(Group, device='cpu')
 
     print("Testing lietorch forward pass (GPU) ...")
     for Group in [SO3, RxSO3, SE3, Sim3, SEK3]:
@@ -303,5 +321,7 @@ if __name__ == '__main__':
         extract_translation_grad(Group, device='cuda')
         test_vec_grad(Group, device='cuda')
         test_fromvec_grad(Group, device='cuda')
+        # if Group == SEK3:
+        #     test_fromcat_grad(Group, device='cuda')
 
 

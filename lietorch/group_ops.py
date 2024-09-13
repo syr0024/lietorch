@@ -100,3 +100,24 @@ class ToVec(torch.autograd.Function):
         J = lietorch_backends.projector(ctx.group_id, *inputs)
         return None, torch.matmul(grad.unsqueeze(-2), J).squeeze(-2)
 
+class FromCat(torch.autograd.Function):
+    """ convert vector into group object """
+
+    @classmethod
+    def forward(cls, ctx, group_id, *inputs):
+        ctx.group_id = group_id
+        ctx.save_for_backward(inputs[0])
+        return torch.cat(inputs[0], dim=-1)
+
+    @classmethod
+    def backward(cls, ctx, grad):
+        inputs = ctx.saved_tensors
+        grad_inputs = []
+        idx = 0
+        grad_inputs.append(grad[idx:idx + inputs[0].numel()].view(inputs[0].shape))
+        idx += inputs.numel()
+        for trans in inputs[1].split(3, dim=-1):
+            grad_inputs.append(grad[idx:idx + trans.numel()].bmm(lietorch_backends.as_matrix(ctx.group_id, inputs[0])))
+            idx += trans.numel()
+
+        return None, tuple(grad_inputs)

@@ -15,14 +15,24 @@ wq.requires_grad_()
 print(vec)
 
 # create SO3 object from quaternion (differentiable w.r.t q)
-T = SEK3.InitFromVec(vec)
+T = SE3.InitFromVec(wq)
 R = SO3.InitFromVec(q)
-SE = SE3.InitFromVec(wq)
+SEK3_1 = SEK3.InitFromVec(vec)
+SEK3_2 = SEK3.InitFromCat(R, vec[...,4:])
+
+dX = SEK3_1 * SEK3_2.inv()
+loss = dX.log().norm(dim=-1).sum()
+
+loss.backward()
+
+a = .2*torch.randn(2,3,SE3.manifold_dim).double()
+b = SE3.exp(a)
+
 
 # 4x4 transformation matrix (differentiable w.r.t R)
 T_mat = T.matrix()
 R_mat = R.matrix()
-SE_mat = SE.matrix()
+SE_mat = SEK3_1.matrix()
 
 print(T_mat)
 print(R_mat)
@@ -30,7 +40,7 @@ print(SE_mat)
 
 print(T.log())
 print(R.log())
-print(SE.log())
+print(SEK3_1.log())
 
 a = .2*torch.randn(1,SEK3.manifold_dim).double()
 b = torch.cat((a[...,3:6],a[...,:3]), dim=-1)

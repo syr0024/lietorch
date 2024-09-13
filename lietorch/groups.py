@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 # group operations implemented in cuda
-from .group_ops import Exp, Log, Inv, Mul, Adj, AdjT, Jinv, Act3, Act4, ToMatrix, ToVec, FromVec
+from .group_ops import Exp, Log, Inv, Mul, Adj, AdjT, Jinv, Act3, Act4, ToMatrix, ToVec, FromVec, FromCat
 from .broadcasting import broadcast_inputs
 
 
@@ -106,6 +106,12 @@ class LieGroup:
     @classmethod
     def InitFromVec(cls, data):
         return cls(cls.apply_op(FromVec, data))
+
+    @classmethod
+    def InitFromCat(cls, R, t):
+        """ SO3 and translation to SE3 or SEK3"""
+        assert isinstance(R, SO3), 'class of R is not SO3'
+        return cls(FromCat.apply(cls.group_id, (R.data,t)))
 
     @classmethod
     def Random(cls, *batch_shape, sigma=1.0, **kwargs):
@@ -245,6 +251,7 @@ class SO3(LieGroup):
     group_id = 1
     manifold_dim = 3
     embedded_dim = 4
+    matrix_dim = 4
     
     # unit quaternion
     id_elem = torch.as_tensor([0.0, 0.0, 0.0, 1.0])
@@ -261,6 +268,7 @@ class RxSO3(LieGroup):
     group_id = 2
     manifold_dim = 4
     embedded_dim = 5
+    matrix_dim = 4
     
     # unit quaternion
     id_elem = torch.as_tensor([0.0, 0.0, 0.0, 1.0, 1.0])
@@ -277,6 +285,7 @@ class SE3(LieGroup):
     group_id = 3
     manifold_dim = 6
     embedded_dim = 7
+    matrix_dim = 4
 
     # translation, unit quaternion
     id_elem = torch.as_tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
@@ -299,6 +308,7 @@ class Sim3(LieGroup):
     group_id = 4
     manifold_dim = 7
     embedded_dim = 8
+    matrix_dim = 4
 
     # translation, unit quaternion, scale
     id_elem = torch.as_tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0])
@@ -326,6 +336,7 @@ class SEK3(LieGroup):
     k = 6
     manifold_dim = 3+3*k
     embedded_dim = 4+3*k
+    matrix_dim = 3+k
 
     # translation, unit quaternion
     id_elem = torch.as_tensor([0, 0, 0, 1] + [0, 0, 0] * k)
