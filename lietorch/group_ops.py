@@ -17,7 +17,19 @@ class GroupOp(torch.autograd.Function):
     @classmethod
     def backward(cls, ctx, grad):
         error_str = "Backward operation not implemented for {}".format(cls)
+        nan_error_str = "{} Backward operation gradient is NaN".format(cls)
+        if torch.any(torch.isnan(grad)):
+            nan_indices = torch.isnan(grad)
+            print(nan_error_str)
+            print("grad contains NaN at positions:")
+
+            nan_batch = list(set((torch.where(nan_indices)[0]).tolist()))
+            print(grad[nan_batch])
+
+            raise ValueError("NaN values found in gradient tensor.")
         assert cls.backward_op is not None, error_str
+        assert torch.any(torch.isnan(grad)) is not True, nan_error_str
+        # print("class: {}, grad mean: {}".format(cls, grad.mean()))
 
         inputs = ctx.saved_tensors
         grad = grad.contiguous()
@@ -83,6 +95,10 @@ class FromVec(torch.autograd.Function):
     def backward(cls, ctx, grad):
         inputs = ctx.saved_tensors
         J = lietorch_backends.projector(ctx.group_id, *inputs)
+        # if torch.any(torch.isnan(J)):
+        #     nan_indices = list(set((torch.where(torch.isnan(J))[0]).tolist()))
+        #     print("FromVec backward, J is nan", J[nan_indices])
+        # print("class: {}, grad mean: {}".format(cls, grad.mean()))
         return None, torch.matmul(grad.unsqueeze(-2), torch.linalg.pinv(J)).squeeze(-2)
 
 class ToVec(torch.autograd.Function):
@@ -98,26 +114,8 @@ class ToVec(torch.autograd.Function):
     def backward(cls, ctx, grad):
         inputs = ctx.saved_tensors
         J = lietorch_backends.projector(ctx.group_id, *inputs)
+        # if torch.any(torch.isnan(J)):
+        #     nan_indices = list(set((torch.where(torch.isnan(J))[0]).tolist()))
+        #     print("ToVec backward, J is nan", J[nan_indices])
+        # print("class: {}, grad mean: {}".format(cls, grad.mean()))
         return None, torch.matmul(grad.unsqueeze(-2), J).squeeze(-2)
-
-class FromCat(torch.autograd.Function):
-    """ convert vector into group object """
-
-    @classmethod
-    def forward(cls, ctx, group_id, *inputs):
-        ctx.group_id = group_id
-        ctx.save_for_backward(inputs[0])
-        return torch.cat(inputs[0], dim=-1)
-
-    @classmethod
-    def backward(cls, ctx, grad):
-        inputs = ctx.saved_tensors
-        grad_inputs = []
-        idx = 0
-        grad_inputs.append(grad[idx:idx + inputs[0].numel()].view(inputs[0].shape))
-        idx += inputs.numel()
-        for trans in inputs[1].split(3, dim=-1):
-            grad_inputs.append(grad[idx:idx + trans.numel()].bmm(lietorch_backends.as_matrix(ctx.group_id, inputs[0])))
-            idx += trans.numel()
-
-        return None, tuple(grad_inputs)

@@ -61,7 +61,6 @@ class SEK3 {
       return SEK3(so3 * other.so3, trans_op);
     }
 
-    // TODO: SEK3 상에서는 안쓰는 함수
     EIGEN_DEVICE_FUNC Point operator*(Point const& p) const {
       return so3 * p + translation.template segment<3>(3);
     }
@@ -138,8 +137,7 @@ class SEK3 {
 
       return ad;
     }
-  
-    //TODO : 검증안됨 맞는지모름
+
     // 일반 tensor matrix를 Liegroup 상에 project 해줄 때 필요한 함수
     EIGEN_DEVICE_FUNC Eigen::Matrix<Scalar,N,N> orthogonal_projector() const {
       // jacobian action on a point

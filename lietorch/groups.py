@@ -108,12 +108,6 @@ class LieGroup:
         return cls(cls.apply_op(FromVec, data))
 
     @classmethod
-    def InitFromCat(cls, R, t):
-        """ SO3 and translation to SE3 or SEK3"""
-        assert isinstance(R, SO3), 'class of R is not SO3'
-        return cls(FromCat.apply(cls.group_id, (R.data,t)))
-
-    @classmethod
     def Random(cls, *batch_shape, sigma=1.0, **kwargs):
         """ Construct random element with batch_shape by random sampling in tangent space"""
 
@@ -192,6 +186,15 @@ class LieGroup:
         I = torch.eye(m, dtype=self.dtype, device=self.device)
         I = I.view([1] * (len(self.data.shape) - 1) + [m, m])
         return self.__class__(self.data[...,None,:]).act(I).transpose(-1,-2)
+
+    def adj_mat(self):
+        """ return adj matrix (only for SEK3)"""
+        # TODO: SEK3 말고 일반화 해보기
+        k = 3+3*6
+
+        I = torch.eye(k, dtype=self.dtype, device=self.device)
+        I = I.view([1] * (len(self.data.shape) - 1) + [k, k])
+        return self.__class__(self.data[...,None,:]).adj(I).transpose(-1,-2)
 
     def translation(self):
         """ extract translation component """
@@ -339,7 +342,7 @@ class SEK3(LieGroup):
     matrix_dim = 3+k
 
     # translation, unit quaternion
-    id_elem = torch.as_tensor([0, 0, 0, 1] + [0, 0, 0] * k)
+    id_elem = torch.as_tensor([0.0, 0.0, 0.0, 1.0] + [0.0, 0.0, 0.0] * k)
 
     def __init__(self, data):
         if isinstance(data, SO3):
@@ -352,12 +355,6 @@ class SEK3(LieGroup):
         q, t = self.data.split([4,3*self.k], -1)
         t = t * s.unsqueeze(-1)
         return SE3(torch.cat([q, t], dim=-1))
-
-
-def cat(group_list, dim):
-    """ Concatenate groups along dimension """
-    data = torch.cat([X.data for X in group_list], dim=dim)
-    return group_list[0].__class__(data)
 
 def stack(group_list, dim):
     """ Concatenate groups along dimension """
