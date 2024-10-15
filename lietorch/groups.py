@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 # group operations implemented in cuda
-from .group_ops import Exp, Log, Inv, Mul, Adj, AdjT, Jinv, Act3, Act4, ToMatrix, ToVec, FromVec, FromCat
+from .group_ops import Exp, Log, Inv, Mul, Adj, AdjT, Jinv, Act3, Act4, ToMatrix, ToVec, FromVec
 from .broadcasting import broadcast_inputs
 
 
