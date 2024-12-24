@@ -10,6 +10,7 @@
 #include "se3.h"
 #include "sim3.h"
 #include "sek3.h"
+#include "se23.h"
 
 #define GPU_1D_KERNEL_LOOP(i, n) \
   for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i<n; i += blockDim.x * gridDim.x)

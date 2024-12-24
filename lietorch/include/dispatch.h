@@ -8,6 +8,7 @@
 #include "se3.h"
 #include "sim3.h"
 #include "sek3.h"
+#include "se23.h"
 
 
 #define PRIVATE_CASE_TYPE(group_index, enum_type, type, ...)    \
@@ -32,6 +33,10 @@
       }                                                         \
       case 5: {                                                 \
         using group_t = SEK3<type>;                             \
+        return __VA_ARGS__();                                   \
+      }                                                         \
+      case 6: {                                                 \
+        using group_t = SE23<type>;                             \
         return __VA_ARGS__();                                   \
       }                                                         \
     }                                                           \

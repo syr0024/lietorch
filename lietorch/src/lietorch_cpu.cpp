@@ -11,6 +11,7 @@
 #include "se3.h"
 #include "sim3.h"
 #include "sek3.h"
+#include "se23.h"
 
 
 template <typename Group, typename scalar_t>

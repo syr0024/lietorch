@@ -198,11 +198,15 @@ class LieGroup:
 
     def translation(self):
         """ extract translation component """
-        k = 6 # TODO: k 밖에서 설정해줄 수 있도록 해야함
         if self.data.shape[-1] < 9:
             m = 4
             p = torch.as_tensor([0.0, 0.0, 0.0, 1.0], dtype=self.dtype, device=self.device)
+        elif self.data.shape[-1] == 9:
+            k = 2
+            m = 3+k
+            p = torch.cat((torch.zeros(3, dtype=self.dtype, device=self.device), torch.ones(k, dtype=self.dtype, device=self.device)))
         else:
+            k = 6
             m = 3+k
             p = torch.cat((torch.zeros(3, dtype=self.dtype, device=self.device), torch.ones(k, dtype=self.dtype, device=self.device)))
         p = p.view([1] * (len(self.data.shape) - 1) + [m,])
@@ -346,7 +350,7 @@ class SEK3(LieGroup):
 
     def __init__(self, data):
         if isinstance(data, SO3):
-            translation = torch.zeros_like(data.data[...,:3]).repeat_interleave(self.k, dim=-1)
+            translation = torch.zeros_like(data.data[...,:3]).repeat_interleave(6, dim=-1)
             data = torch.cat([data.data, translation], -1)
 
         super(SEK3, self).__init__(data)
@@ -355,6 +359,34 @@ class SEK3(LieGroup):
         q, t = self.data.split([4,3*self.k], -1)
         t = t * s.unsqueeze(-1)
         return SE3(torch.cat([q, t], dim=-1))
+
+class SE23(LieGroup):
+    group_name = 'SE23'
+    group_id = 6
+    k = 2
+    manifold_dim = 3+3*k
+    embedded_dim = 4+3*k
+    matrix_dim = 3+k
+
+    # translation, unit quaternion
+    id_elem = torch.as_tensor([0.0, 0.0, 0.0, 1.0] + [0.0, 0.0, 0.0] * k)
+
+    def __init__(self, data):
+        if isinstance(data, SO3):
+            translation = torch.zeros_like(data.data[...,:3]).repeat_interleave(2, dim=-1)
+            data = torch.cat([data.data, translation], -1)
+
+        super(SE23, self).__init__(data)
+
+    def scale(self, s):
+        q, t = self.data.split([4,3*self.k], -1)
+        t = t * s.unsqueeze(-1)
+        return SE3(torch.cat([q, t], dim=-1))
+
+def cat(group_list, dim):
+    """ Concatenate groups along dimension """
+    data = torch.cat([X.data for X in group_list], dim=dim)
+    return group_list[0].__class__(data)
 
 def stack(group_list, dim):
     """ Concatenate groups along dimension """

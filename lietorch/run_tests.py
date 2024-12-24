@@ -1,7 +1,7 @@
 import torch
 import lietorch
 
-from lietorch import SO3, RxSO3, SE3, Sim3, SEK3
+from lietorch import SO3, RxSO3, SE3, Sim3, SEK3, SE23
 from gradcheck import gradcheck, get_analytical_jacobian
 
 
@@ -215,7 +215,7 @@ def test_fromvec_grad(Group, device='cuda', tol=1e-6):
             q = q / q.norm(dim=-1, keepdim=True)
             a = torch.cat([t, q, s.exp()], dim=-1)
 
-        elif Group == SEK3:
+        elif Group == SEK3 or SE23:
             q, t = a.split([4, 3*Group.k], dim=-1)
             q = q / q.norm(dim=-1, keepdim=True)
             a = torch.cat([q, t], dim=-1)
@@ -273,14 +273,14 @@ if __name__ == '__main__':
 
 
     print("Testing lietorch forward pass (CPU) ...")
-    for Group in [SO3, RxSO3, SE3, Sim3, SEK3]:
+    for Group in [SO3, RxSO3, SE3, Sim3, SEK3, SE23]:
         test_exp_log(Group, device='cpu')
         test_inv(Group, device='cpu')
         test_adj(Group, device='cpu')
         # test_act(Group, device='cpu')
 
     print("Testing lietorch backward pass (CPU)...")
-    for Group in [SO3, RxSO3, SE3, Sim3, SEK3]:
+    for Group in [SO3, RxSO3, SE3, Sim3, SEK3, SE23]:
         if Group == Sim3:
             tol = 1e-3
         else:
@@ -299,14 +299,14 @@ if __name__ == '__main__':
         #     test_fromcat_grad(Group, device='cpu')
 
     print("Testing lietorch forward pass (GPU) ...")
-    for Group in [SO3, RxSO3, SE3, Sim3, SEK3]:
+    for Group in [SO3, RxSO3, SE3, Sim3, SEK3, SE23]:
         test_exp_log(Group, device='cuda')
         test_inv(Group, device='cuda')
         test_adj(Group, device='cuda')
         # test_act(Group, device='cuda')
 
     print("Testing lietorch backward pass (GPU)...")
-    for Group in [SO3, RxSO3, SE3, Sim3, SEK3]:
+    for Group in [SO3, RxSO3, SE3, Sim3, SEK3, SE23]:
         if Group == Sim3:
             tol = 1e-3
         else:
